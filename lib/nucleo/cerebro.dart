@@ -11,6 +11,12 @@
 /// - **Leer imagenes**: fotos de apuntes, cuestionarios, pizarras, enunciados.
 /// - **Contestar de seguido**: varias preguntas en una y las responde todas.
 ///
+/// EL HILO
+///
+/// El cerebro no guarda la conversacion: se la pasan hecha desde el historial.
+/// Asi lo que ves en pantalla y lo que el modelo recuerda son exactamente lo
+/// mismo, y al volver a una conversacion de hace tres dias sigue enterado.
+///
 /// LA CLAVE
 ///
 /// La clave de Gemini NO va escrita en el codigo. Una clave metida dentro de
@@ -24,6 +30,7 @@ import 'dart:typed_data';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 import 'ajustes.dart';
+import 'historial.dart';
 import 'memoria.dart';
 
 /// Como habla VALEN. Es el hermano del prompt del escritorio, recortado a lo
@@ -34,25 +41,61 @@ Eres VALEN, un asistente personal que vive en el telefono de tu usuario.
 Tu caracter: seguro, calido y con humor seco. Tienes opiniones y las dices. No
 eres un robot que solo obedece: eres alguien con quien da gusto hablar.
 
-Como hablas:
-- Tu respuesta se lee en voz alta, asi que escribe como se habla.
-- Sin markdown, sin asteriscos, sin vinetas ni listas numeradas.
-- Breve: una o dos frases, salvo que te pidan una explicacion de verdad.
-- Los numeros y simbolos, como se pronuncian: "ochenta por ciento", no "80%".
+Como escribes:
+- Lo que digas puede leerse en voz alta, asi que escribe como se habla.
+- Nada de markdown: sin asteriscos, sin almohadillas, sin vinetas.
+- Para varias preguntas si puedes numerar, con "1)" al principio de la linea.
+- Breve cuando la pregunta es breve. Largo solo si de verdad hace falta.
 - Nunca digas que eres un modelo de lenguaje ni menciones a Google. Eres VALEN.
 
-Cuando te mandan ejercicios o examenes:
-- Resuelvelos de verdad, paso a paso, pero contando el razonamiento como se lo
-  contarias a un companero, no como un libro de texto.
-- Si son varias preguntas, contestalas todas, en orden y numeradas al hablar
-  ("la primera...", "la segunda...").
-- Si en la foto no se lee algo, dilo en vez de inventartelo.
-- Si te piden solo el resultado, da el resultado. Si te piden que expliques,
-  explica.
-- Si el ejercicio esta mal planteado o le falta un dato, avisa.
+Cuando te mandan fotos de ejercicios o examenes:
+- Primero di cuantas preguntas ves, para que sepan que no se te escapo ninguna.
+- Contestalas TODAS, en orden, numerada cada una como venga en la hoja.
+- Si algo de la foto no se lee, dilo en esa pregunta en vez de inventartelo.
+- Si un enunciado esta mal planteado o le falta un dato, avisa y sigue.
+- Si en la foto ya hay respuestas escritas, entiende que son del usuario y
+  di cuales estan bien y cuales no.
 
 Nunca inventes datos del mundo real. Si no sabes algo que pasa hoy, dilo.
 ''';
+
+/// Que se le pide a VALEN cuando hay una tarea de por medio.
+///
+/// Son los cuatro botones que salen al adjuntar fotos, y estan pensados desde
+/// lo que de verdad hace falta al estudiar: a veces quieres la respuesta, a
+/// veces quieres entenderla, y a veces solo quieres saber si lo tuyo esta bien.
+enum ModoTarea {
+  normal,
+  resolverTodo,
+  soloRespuestas,
+  pasoAPaso,
+  revisarLoMio;
+
+  String get instruccion => switch (this) {
+        ModoTarea.normal => '',
+        ModoTarea.resolverTodo =>
+          'Resuelve todas las preguntas de las imagenes. Da el resultado de '
+              'cada una y una linea corta de por que.',
+        ModoTarea.soloRespuestas =>
+          'Da solo las respuestas, numeradas, sin explicar nada. Una linea por '
+              'pregunta.',
+        ModoTarea.pasoAPaso =>
+          'Explica cada ejercicio paso a paso, como se lo explicarias a alguien '
+              'que no lo entiende, antes de dar el resultado.',
+        ModoTarea.revisarLoMio =>
+          'En las imagenes hay respuestas ya escritas por el usuario. Revisa '
+              'cada una: di si esta bien o mal, y si esta mal explica el fallo '
+              'y da la correcta.',
+      };
+
+  String get etiqueta => switch (this) {
+        ModoTarea.normal => 'Preguntar',
+        ModoTarea.resolverTodo => 'Resolver todo',
+        ModoTarea.soloRespuestas => 'Solo respuestas',
+        ModoTarea.pasoAPaso => 'Paso a paso',
+        ModoTarea.revisarLoMio => 'Revisar lo mio',
+      };
+}
 
 /// Lo que VALEN devuelve tras pensar.
 class Respuesta {
@@ -74,38 +117,104 @@ class Cerebro {
     'gemini-3.1-flash-lite',
   ];
 
-  final List<Content> _historial = [];
+  /// Cuantos turnos del hilo se le reenvian. Cada uno cuesta, y una
+  /// conversacion de estudio rara vez necesita mas contexto que esto.
+  static const int turnosDeContexto = 14;
+
   int _modeloActual = 0;
 
-  /// Cuantos turnos de conversacion se recuerdan. En un telefono el hilo es
-  /// corto por naturaleza, y cada turno guardado se reenvia y cuesta.
-  static const int turnosRecordados = 12;
-
   bool get listo => Ajustes.claveGemini.isNotEmpty;
-
-  /// Olvida la conversacion, no la memoria a largo plazo.
-  void olvidarHilo() => _historial.clear();
 
   GenerativeModel _modelo(String nombre, String instruccion) {
     return GenerativeModel(
       model: nombre,
       apiKey: Ajustes.claveGemini,
       systemInstruction: Content.system(instruccion),
-      generationConfig: GenerationConfig(maxOutputTokens: 1400),
+      generationConfig: GenerationConfig(maxOutputTokens: 2400),
     );
   }
 
-  /// Lo que sabe del usuario, para que no empiece de cero cada vez.
-  Future<String> _instruccion() async {
+  /// Personalidad, modo de tarea y lo que sabe del usuario, todo junto.
+  Future<String> _instruccion(ModoTarea modo) async {
+    final trozos = <String>[personalidad];
+
+    if (modo.instruccion.isNotEmpty) {
+      trozos.add('Para este mensaje en concreto: ${modo.instruccion}');
+    }
+
     final sabido = await Memoria.instancia.contextoParaPrompt();
-    return sabido.isEmpty ? personalidad : '$personalidad\n\n$sabido';
+    if (sabido.isNotEmpty) trozos.add(sabido);
+
+    return trozos.join('\n\n');
   }
 
-  /// Responde a una pregunta, con o sin imagenes.
+  /// Arma lo que se le manda al modelo a partir del hilo guardado.
   ///
-  /// [imagenes] son fotos de apuntes o ejercicios. Van con la pregunta en el
-  /// mismo turno, que es como el modelo las entiende mejor.
-  Future<Respuesta> responder(String pregunta, {List<Uint8List> imagenes = const []}) async {
+  /// Las fotos viejas no se reenvian todas: solo las del ultimo mensaje que
+  /// llevaba. Reenviar cada foto de la conversacion en cada turno multiplicaria
+  /// el gasto por nada, pero perderlas del todo romperia el caso normal, que
+  /// es mandar una tarea y luego preguntar por la tercera pregunta.
+  Future<List<Content>> _armarHilo(
+    List<Turno> anteriores,
+    String pregunta,
+    List<Uint8List> imagenesNuevas,
+  ) async {
+    final recientes = anteriores.length > turnosDeContexto
+        ? anteriores.sublist(anteriores.length - turnosDeContexto)
+        : anteriores;
+
+    // Si el mensaje de ahora no trae fotos, se recuperan las del ultimo que si.
+    var indiceConFotos = -1;
+    if (imagenesNuevas.isEmpty) {
+      for (var i = recientes.length - 1; i >= 0; i--) {
+        if (recientes[i].mio && recientes[i].tieneImagenes) {
+          indiceConFotos = i;
+          break;
+        }
+      }
+    }
+
+    final hilo = <Content>[];
+
+    for (var i = 0; i < recientes.length; i++) {
+      final turno = recientes[i];
+
+      if (!turno.mio) {
+        hilo.add(Content.model([TextPart(turno.texto)]));
+        continue;
+      }
+
+      final partes = <Part>[TextPart(turno.texto)];
+
+      if (i == indiceConFotos) {
+        for (final datos in await turno.leerImagenes()) {
+          partes.add(DataPart('image/jpeg', datos));
+        }
+      } else if (turno.tieneImagenes) {
+        // Se menciona que hubo fotos, para que el modelo no se pierda.
+        partes.add(TextPart('(en este mensaje habia '
+            '${turno.rutasImagenes.length} imagen(es))'));
+      }
+
+      hilo.add(Content.multi(partes));
+    }
+
+    final ahora = <Part>[TextPart(pregunta)];
+    for (final imagen in imagenesNuevas) {
+      ahora.add(DataPart('image/jpeg', imagen));
+    }
+    hilo.add(Content.multi(ahora));
+
+    return hilo;
+  }
+
+  /// Responde a una pregunta, con o sin imagenes, dentro de un hilo.
+  Future<Respuesta> responder(
+    String pregunta, {
+    List<Uint8List> imagenes = const [],
+    List<Turno> anteriores = const [],
+    ModoTarea modo = ModoTarea.normal,
+  }) async {
     if (!listo) {
       return const Respuesta(
         texto: 'Todavia no tengo clave del cerebro. Ponla en los ajustes.',
@@ -113,15 +222,8 @@ class Cerebro {
       );
     }
 
-    final partes = <Part>[TextPart(pregunta)];
-    for (final imagen in imagenes) {
-      partes.add(DataPart('image/jpeg', imagen));
-    }
-
-    _historial.add(Content.multi(partes));
-    _recortarHilo();
-
-    final instruccion = await _instruccion();
+    final hilo = await _armarHilo(anteriores, pregunta, imagenes);
+    final instruccion = await _instruccion(modo);
     Object? ultimoFallo;
 
     // Se empieza por el modelo que funciono la ultima vez, no siempre por el
@@ -130,14 +232,13 @@ class Cerebro {
       final indice = (_modeloActual + salto) % modelos.length;
 
       try {
-        final respuesta = await _modelo(modelos[indice], instruccion)
-            .generateContent(_historial);
+        final respuesta =
+            await _modelo(modelos[indice], instruccion).generateContent(hilo);
 
         final texto = (respuesta.text ?? '').trim();
         if (texto.isEmpty) continue;
 
         _modeloActual = indice;
-        _historial.add(Content.model([TextPart(texto)]));
         return Respuesta(texto: texto);
       } catch (error) {
         ultimoFallo = error;
@@ -145,16 +246,7 @@ class Cerebro {
       }
     }
 
-    // El turno que fallo se saca del hilo: si se queda, envenena los
-    // siguientes reenviandose una y otra vez.
-    _historial.removeLast();
     return Respuesta(texto: _explicarFallo(ultimoFallo), fallo: true);
-  }
-
-  void _recortarHilo() {
-    while (_historial.length > turnosRecordados * 2) {
-      _historial.removeAt(0);
-    }
   }
 
   bool _esFaltaDeCuota(Object error) {
@@ -176,6 +268,9 @@ class Cerebro {
     }
     if (texto.contains('socket') || texto.contains('network') || texto.contains('failed host')) {
       return 'No tengo internet ahora mismo.';
+    }
+    if (texto.contains('safety') || texto.contains('blocked')) {
+      return 'Eso no me dejaron responderlo. Preguntamelo de otra forma.';
     }
 
     return 'No pude pensar eso. Intentalo otra vez.';

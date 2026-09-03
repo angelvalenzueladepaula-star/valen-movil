@@ -30,6 +30,52 @@ telefono la camara esta a mano, asi que el uso natural no es "abre Discord"
 sino **mandarle una foto de los ejercicios y que los resuelva**. Varias fotos a
 la vez, porque un examen tiene varias hojas.
 
+Y **todo queda guardado**, como en cualquier asistente al que estas
+acostumbrado: cada conversacion con su titulo, y ahi sigue cuando vuelvas.
+
+---
+
+## El historial
+
+Se comporta como esperas de una IA normal:
+
+- Cada conversacion se guarda entera, con sus fotos.
+- El titulo se pone solo, sacado de la primera pregunta.
+- Al abrir la aplicacion vuelves a lo ultimo que estabas haciendo.
+- El cajon lateral las lista, y el buscador **mira dentro de lo que se dijo**,
+  no solo en los titulos: uno recuerda "aquella vez que le pregunte por las
+  derivadas", no el nombre que le puso.
+- Se pueden renombrar y borrar. Al borrar una, se van tambien sus fotos.
+
+Vive en una base SQLite dentro del telefono, no en un servidor. El historial se
+lee cada vez que abres la aplicacion y cada vez que escribes: hacerlo contra un
+servidor seria lento, gastaria datos y dejaria de funcionar sin cobertura.
+
+Las fotos se guardan como archivos y en la base solo queda su ruta. Meter una
+foto de dos megas en cada fila haria que la base creciera hasta arrastrarse.
+
+---
+
+## Las tareas con fotos
+
+Al adjuntar fotos salen cuatro botones, que son las cuatro cosas que de verdad
+se piden al estudiar:
+
+| Boton | Que le pide |
+| --- | --- |
+| Resolver todo | El resultado de cada pregunta y una linea de por que |
+| Paso a paso | La explicacion entera, como a alguien que no lo entiende |
+| Solo respuestas | Numeradas y sin explicar, para copiar rapido |
+| **Revisar lo mio** | Mira las respuestas que ya escribiste y dice cuales estan mal |
+
+VALEN empieza diciendo cuantas preguntas ve, para que sepas que no se le
+escapo ninguna, y si algo de la foto no se lee lo dice en vez de inventarselo.
+
+**Las fotos viejas no se reenvian en cada mensaje.** Solo las del ultimo
+mensaje que llevaba. Reenviar cada foto de la conversacion en cada turno
+multiplicaria el gasto por nada, pero perderlas del todo romperia el caso
+normal: mandar la tarea y luego preguntar por la tercera pregunta.
+
 ---
 
 ## La V flotante
@@ -188,6 +234,7 @@ lib/
   main.dart                 arranque y a que pantalla se va
   nucleo/
     logo.dart               la V en vectores, 42 puntos
+    historial.dart          las conversaciones guardadas
     estados.dart            dormido / escuchando / pensando / hablando / error
     cerebro.dart            Gemini, con imagenes
     voz.dart                oir y hablar
@@ -199,6 +246,7 @@ lib/
     burbuja.dart            la ventana flotante y sus gestos
   pantallas/
     entrar.dart             entrar o crear cuenta
+    conversaciones.dart     el cajon con todo lo guardado
     chat.dart               la aplicacion entera: hablar y mandar fotos
     ajustes_pantalla.dart   ajustes
   servicios/
@@ -229,6 +277,5 @@ Queda por hacer:
 - **Modo seguridad de telefono**, que es otra cosa que en el PC: foto con la
   camara frontal si alguien falla el desbloqueo, alarma si mueven el telefono
   mientras esta vigilando, y aviso si lo desenchufan.
-- **Guardar la conversacion** entre sesiones.
 - Probarlo todo en un telefono de verdad, que es donde se ven los problemas
   que no salen en el navegador.

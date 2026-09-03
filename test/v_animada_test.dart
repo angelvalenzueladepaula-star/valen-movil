@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:valen_movil/burbuja/v_animada.dart';
+import 'package:valen_movil/nucleo/cerebro.dart';
 import 'package:valen_movil/nucleo/estados.dart';
 import 'package:valen_movil/nucleo/logo.dart';
 
@@ -46,5 +47,23 @@ void main() {
       await tester.pump(const Duration(milliseconds: 120));
       expect(find.byType(VAnimada), findsOneWidget);
     }
+  });
+
+  test('los cuatro modos de tarea dicen cosas distintas', () {
+    final conInstruccion = ModoTarea.values
+        .where((m) => m != ModoTarea.normal)
+        .toList();
+
+    // Cada boton tiene que pedirle algo diferente al modelo, o sobra.
+    final instrucciones = conInstruccion.map((m) => m.instruccion).toSet();
+    expect(instrucciones.length, conInstruccion.length);
+
+    for (final modo in conInstruccion) {
+      expect(modo.instruccion, isNotEmpty);
+      expect(modo.etiqueta, isNotEmpty);
+    }
+
+    // El modo normal no mete nada en el prompt: es conversacion a secas.
+    expect(ModoTarea.normal.instruccion, isEmpty);
   });
 }

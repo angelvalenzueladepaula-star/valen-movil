@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 import '../nucleo/ajustes.dart';
+import '../nucleo/historial.dart';
 import '../nucleo/memoria.dart';
 import '../nucleo/sesion.dart';
 import '../servicios/burbuja_servicio.dart';
@@ -147,6 +148,9 @@ class _PantallaAjustesState extends State<PantallaAjustes> {
               onTap: () async {
                 await Sesion.salir();
                 Memoria.instancia.reiniciar();
+                // El historial se cierra para que al entrar otra persona no
+                // vea, ni un instante, las conversaciones de quien salio.
+                await Historial.instancia.cerrar();
                 if (context.mounted) Navigator.of(context).pop();
               },
             ),
