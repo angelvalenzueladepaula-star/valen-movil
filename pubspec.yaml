@@ -38,13 +38,15 @@ dependencies:
   flutter_secure_storage:
   shared_preferences:
 
-  # Permisos, estado del telefono y sensores para el modo seguridad
-  permission_handler:
-  battery_plus:
-  sensors_plus:
-
-  http:
-  intl:
+  # Nota: aqui habia cinco paquetes mas (permission_handler, battery_plus,
+  # sensors_plus, http, intl) puestos "por si acaso" para el saludo de la
+  # manana y el modo seguridad, que todavia no estan escritos. Ninguno se
+  # usaba, y permission_handler ademas rompia la compilacion del APK por pedir
+  # una version de Kotlin mas nueva.
+  #
+  # Se vuelven a poner cuando de verdad hagan falta. Cada dependencia que
+  # sobra es un permiso de mas que pide la aplicacion y una cosa mas que se
+  # puede romper sola.
 
 dev_dependencies:
   flutter_test:
