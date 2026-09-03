@@ -1,0 +1,79 @@
+# Publica VALEN como pagina web, gratis, en GitHub Pages.
+#
+# La version web es la misma aplicacion, con una diferencia importante: **no
+# tiene la V flotante**. Ninguna pagina web puede dibujarse encima de otras
+# aplicaciones del telefono, y eso no es cosa de VALEN sino de como funcionan
+# los navegadores.
+#
+# Todo lo demas si: conversar, mandar fotos de la tarea, el historial guardado,
+# la voz, las cuentas. Y desde el movil se puede anadir a la pantalla de inicio
+# para que se abra como una aplicacion normal, con su icono.
+#
+# COMO SE ENCIENDE
+#
+#   1. Subir el proyecto a GitHub.
+#   2. Settings -> Pages -> Source: "GitHub Actions".
+#   3. Listo. Cada cambio en la rama principal republica la pagina.
+
+name: VALEN en la web
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Si se lanzan dos seguidas, que gane la ultima en vez de pelearse.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.6'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Preparar la base de datos del navegador
+        # Deja los archivos que necesita SQLite para funcionar en web.
+        run: dart run sqflite_common_ffi_web:setup
+
+      - name: Construir la web
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON: ${{ vars.SUPABASE_ANON }}
+        # El base-href tiene que ser el nombre del repositorio, porque en
+        # GitHub Pages la pagina no cuelga de la raiz del dominio.
+        run: |
+          flutter build web --release \
+            --base-href "/${GITHUB_REPOSITORY#*/}/" \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON="$SUPABASE_ANON"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  publicar:
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publicacion.outputs.page_url }}
+
+    steps:
+      - id: publicacion
+        uses: actions/deploy-pages@v4

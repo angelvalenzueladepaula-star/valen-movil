@@ -14,10 +14,14 @@
 ///
 /// LAS IMAGENES
 ///
-/// Las fotos no van dentro de la base de datos: se guardan como archivos y en
-/// la base solo queda su ruta. Meter una foto de dos megas en cada fila haria
-/// que la base creciera hasta hacerse lenta, y ademas asi Android puede
+/// En el telefono las fotos no van dentro de la base: se guardan como archivos
+/// y en la base solo queda su ruta. Meter una foto de dos megas en cada fila
+/// haria que la base creciera hasta hacerse lenta, y ademas asi Android puede
 /// limpiarlas si algun dia hace falta sitio.
+///
+/// En el navegador no hay archivos que valgan, asi que ahi se guardan dentro
+/// de la propia base, convertidas a texto. Es peor, pero la web es la version
+/// de repuesto y asi tambien se quedan guardadas.
 ///
 /// Al borrar una conversacion se borran tambien sus fotos, que si no se
 /// quedarian ocupando sitio para siempre.
@@ -27,6 +31,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -50,15 +55,25 @@ class Turno {
 
   bool get tieneImagenes => rutasImagenes.isNotEmpty;
 
-  /// Lee las fotos del disco para volver a mandarselas al cerebro.
+  /// Lee las fotos para volver a mandarselas al cerebro.
   Future<List<Uint8List>> leerImagenes() async {
     final datos = <Uint8List>[];
-    for (final ruta in rutasImagenes) {
-      final archivo = File(ruta);
+
+    for (final donde in rutasImagenes) {
+      if (esGuardadaEnTexto(donde)) {
+        datos.add(base64Decode(donde.split(',').last));
+        continue;
+      }
+
+      final archivo = File(donde);
       if (await archivo.exists()) datos.add(await archivo.readAsBytes());
     }
+
     return datos;
   }
+
+  /// True si la foto vive dentro de la base (navegador) y no en un archivo.
+  static bool esGuardadaEnTexto(String donde) => donde.startsWith('data:');
 }
 
 /// Una conversacion entera.
@@ -96,8 +111,14 @@ class Historial {
   Future<Database> get _base async {
     if (_bd != null && _bd!.isOpen) return _bd!;
 
+    // En el navegador no hay carpetas: la base se llama por su nombre a secas
+    // y el propio navegador decide donde guardarla.
+    final donde = kIsWeb
+        ? 'valen_historial.db'
+        : '${await getDatabasesPath()}/valen_historial.db';
+
     _bd = await openDatabase(
-      '${await getDatabasesPath()}/valen_historial.db',
+      donde,
       version: 1,
       onCreate: (bd, _) async {
         await bd.execute('''
@@ -202,12 +223,16 @@ class Historial {
     final bd = await _base;
 
     // Las fotos primero: si se borra la fila antes, se pierden las rutas y
-    // los archivos se quedan ocupando sitio para siempre.
-    for (final turno in await turnos(id)) {
-      for (final ruta in turno.rutasImagenes) {
-        try {
-          await File(ruta).delete();
-        } catch (_) {}
+    // los archivos se quedan ocupando sitio para siempre. Las del navegador se
+    // van solas al borrar la fila, porque viven dentro de ella.
+    if (!kIsWeb) {
+      for (final turno in await turnos(id)) {
+        for (final ruta in turno.rutasImagenes) {
+          if (Turno.esGuardadaEnTexto(ruta)) continue;
+          try {
+            await File(ruta).delete();
+          } catch (_) {}
+        }
       }
     }
 
@@ -305,6 +330,10 @@ class Historial {
   // -- fotos ---------------------------------------------------------------
 
   Future<String> _guardarFoto(Uint8List datos) async {
+    // En el navegador no hay carpeta de documentos: la foto se guarda dentro
+    // de la propia base, convertida a texto.
+    if (kIsWeb) return 'data:image/jpeg;base64,${base64Encode(datos)}';
+
     _carpetaFotos ??= Directory(
       '${(await getApplicationDocumentsDirectory()).path}/valen_fotos',
     );
@@ -322,6 +351,8 @@ class Historial {
 
   /// Cuanto ocupan las fotos guardadas, para poder decirlo en los ajustes.
   Future<int> megasDeFotos() async {
+    if (kIsWeb) return 0;
+
     _carpetaFotos ??= Directory(
       '${(await getApplicationDocumentsDirectory()).path}/valen_fotos',
     );

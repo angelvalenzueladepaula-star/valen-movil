@@ -14,8 +14,11 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 import 'nucleo/ajustes.dart';
 import 'nucleo/estados.dart';
@@ -30,6 +33,18 @@ export 'burbuja/burbuja.dart' show puntoDeEntradaBurbuja;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // En el navegador SQLite no existe como tal: se guarda en IndexedDB, y hay
+  // que decirselo antes de tocar el historial.
+  //
+  // Se usa la version sin trabajador compartido a proposito. La otra es algo
+  // mas rapida, pero necesita registrar un service worker, y eso falla en
+  // cuanto la pagina no se sirve con las cabeceras justas o el navegador los
+  // tiene restringidos. Para un historial de conversaciones la diferencia de
+  // velocidad no se nota; que no abra si se nota.
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWebNoWebWorker;
+  }
 
   await Ajustes.cargar();
   await Sesion.preparar();
@@ -89,12 +104,17 @@ class _PuertaState extends State<Puerta> {
 
     if (mounted) setState(() => _cargando = false);
 
-    await BurbujaServicio.encenderSiTocaAlArrancar();
+    // La burbuja es cosa de Android: un navegador no puede dibujar encima de
+    // otras aplicaciones, por mucho permiso que le den.
+    if (!kIsWeb) await BurbujaServicio.encenderSiTocaAlArrancar();
   }
 
   /// La burbuja manda avisos: que se abra la aplicacion, o un turno de
   /// conversacion que hubo mientras la aplicacion estaba cerrada.
   void _escucharALaBurbuja() {
+    // En el navegador no hay burbuja que escuchar, y preguntarselo revienta.
+    if (kIsWeb) return;
+
     FlutterOverlayWindow.overlayListener.listen((mensaje) {
       if (!mounted) return;
 

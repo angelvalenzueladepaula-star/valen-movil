@@ -16,6 +16,7 @@
 /// dejar que algo viva en segundo plano. A cambio, sirve de interruptor.
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
@@ -28,18 +29,27 @@ class BurbujaServicio {
   static const int anchoVentana = 340;
   static const int altoVentana = 260;
 
+  /// Si esta plataforma puede tener burbuja. El navegador no puede: ninguna
+  /// pagina web puede dibujarse encima de las demas aplicaciones.
+  static bool get posible => !kIsWeb;
+
   /// True si el usuario ya dio permiso para dibujar encima de todo.
-  static Future<bool> tienePermiso() =>
-      FlutterOverlayWindow.isPermissionGranted();
+  static Future<bool> tienePermiso() async {
+    if (!posible) return false;
+    return FlutterOverlayWindow.isPermissionGranted();
+  }
 
   /// Pide el permiso. Abre los ajustes de Android, no hay otra forma.
   static Future<bool> pedirPermiso() async {
+    if (!posible) return false;
     if (await tienePermiso()) return true;
     return await FlutterOverlayWindow.requestPermission() ?? false;
   }
 
   /// Prepara el servicio en primer plano. Se llama una vez al arrancar.
   static void prepararServicio() {
+    if (!posible) return;
+
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'valen_fondo',
@@ -62,6 +72,7 @@ class BurbujaServicio {
 
   /// Enciende la burbuja: permiso, servicio y ventana flotante.
   static Future<bool> encender() async {
+    if (!posible) return false;
     if (!await pedirPermiso()) return false;
 
     if (!await FlutterForegroundTask.isRunningService) {

@@ -1,0 +1,76 @@
+# Compila el APK de VALEN en los ordenadores de GitHub, gratis.
+#
+# Sirve para no tener que instalar los ocho gigas del SDK de Android en tu
+# maquina: subes el codigo, GitHub lo compila y te deja el archivo listo para
+# descargar e instalar en el telefono.
+#
+# COMO SE USA
+#
+#   1. Subir este proyecto a un repositorio de GitHub.
+#   2. Entrar en la pestana "Actions" del repositorio.
+#   3. Elegir "APK de VALEN" y pulsar "Run workflow".
+#   4. Cuando termine, el APK esta abajo del todo, en "Artifacts".
+#
+# Tambien se compila solo cada vez que subes cambios a la rama principal.
+#
+# LAS CLAVES
+#
+# La de Gemini NO va aqui: se escribe dentro de la aplicacion, en Ajustes.
+# Las de Supabase (que no son secretas, ver el README) se ponen en el
+# repositorio: Settings -> Secrets and variables -> Actions -> Variables.
+# Si no las pones, el APK sale igual y VALEN funciona sin cuentas de usuario.
+
+name: APK de VALEN
+
+on:
+  workflow_dispatch:        # el boton para lanzarlo a mano
+  push:
+    branches: [main, master]
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Traerse el codigo
+        uses: actions/checkout@v4
+
+      - name: Poner Java
+        # Android necesita la 17 o mas; la que suele haber instalada es vieja.
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Poner Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.6'
+          channel: stable
+          cache: true
+
+      - name: Bajar las dependencias
+        run: flutter pub get
+
+      - name: Revisar el codigo
+        # Si algo no compila, mejor enterarse aqui que despues de esperar el APK.
+        run: flutter analyze
+
+      - name: Pasar las pruebas
+        run: flutter test
+
+      - name: Construir el APK
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON: ${{ vars.SUPABASE_ANON }}
+        run: |
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL="$SUPABASE_URL" \
+            --dart-define=SUPABASE_ANON="$SUPABASE_ANON"
+
+      - name: Dejar el APK para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: valen-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30

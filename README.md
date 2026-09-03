@@ -106,51 +106,66 @@ pixeles que a pantalla completa.
 
 ---
 
-## Para poder compilarlo
+## Como sacarlo: dos caminos, los dos gratis
 
-Aqui esta lo unico que falta. Flutter ya esta instalado (3.35.6), pero **no el
-SDK de Android**, que es lo que convierte el codigo en un APK.
+Android Studio y el SDK de Android **son gratis**. Lo unico que cuesta dinero
+en Android es publicar en Play Store, veinticinco dolares una vez, y eso no
+hace falta para instalarte la aplicacion en tu propio telefono.
 
-### Opcion A: instalarlo en la maquina
+Lo que si cuesta son ocho gigas de disco. De ahi los dos caminos.
 
-Bajar Android Studio de <https://developer.android.com/studio>. Al abrirlo por
-primera vez instala el SDK solo. Son entre cinco y ocho gigas.
+### Camino A: la web, sin instalar nada
 
-Despues:
+Es la misma aplicacion compilada para el navegador. Se publica sola en GitHub
+Pages con el flujo `.github/workflows/web.yml`:
+
+1. Subir el proyecto a un repositorio de GitHub (gratis).
+2. Settings, Pages, y en Source elegir "GitHub Actions".
+3. Cada cambio republica la pagina.
+
+Desde el movil se abre la direccion y se le da a "Anadir a pantalla de inicio":
+queda con su icono de la V y se abre a pantalla completa, como una aplicacion.
+
+**Lo que la web NO puede hacer: la V flotante.** Ninguna pagina web puede
+dibujarse encima de otras aplicaciones del telefono. No es un limite de VALEN,
+es como funcionan los navegadores, y no hay forma de saltarselo.
+
+Todo lo demas si: conversar, mandar fotos de la tarea, el historial guardado,
+la voz, las cuentas.
+
+### Camino B: el APK, compilado en la nube
+
+Para tener la V flotante de verdad hace falta el APK, pero **no hace falta
+instalarse el SDK**: lo compila GitHub con el flujo `.github/workflows/apk.yml`.
+
+1. Subir el proyecto a GitHub.
+2. Pestana "Actions", elegir "APK de VALEN", "Run workflow".
+3. Cuando acabe, el APK esta abajo en "Artifacts".
+4. Se pasa al telefono y se instala.
+
+Tarda unos minutos por compilacion, que es la pega frente a tenerlo en casa.
+
+### Camino C: instalarse el SDK
+
+Si algun dia quieres iterar rapido, Android Studio de
+<https://developer.android.com/studio> lo instala todo solo: el SDK, las
+licencias y el Java correcto. Son unos ocho gigas.
+
+Lo que gana: `adb`, que deja conectar el telefono por cable y ver los cambios
+al momento en vez de esperar una compilacion en la nube cada vez.
 
 ```bash
 flutter doctor --android-licenses
-flutter doctor
-```
-
-Cuando el apartado de Android salga en verde:
-
-```bash
-cd C:\dev\valen_movil
 flutter build apk --release
 ```
 
-El APK queda en `build\app\outputs\flutter-apk\app-release.apk`. Se copia al
-telefono y se instala.
+El APK queda en `buildpp\outputslutter-apkpp-release.apk`.
 
-### Opcion B: compilarlo en la nube, sin instalar nada
-
-Si no quieres gastar ocho gigas de disco, GitHub compila el APK gratis. Se sube
-el proyecto a un repositorio y una accion lo compila y te deja el APK para
-descargar. Hace falta cuenta de GitHub y nada mas.
-
-### Para probar mientras tanto
-
-La parte visual se puede ver sin SDK de Android, en el navegador:
+### Para ver la pantalla mientras tanto
 
 ```bash
 flutter run -d chrome
 ```
-
-La V y las pantallas funcionan. La burbuja flotante y el servicio en segundo
-plano no, porque son cosas de Android.
-
----
 
 ## Lo que hay que configurar
 
@@ -268,7 +283,8 @@ trato distinto: tocas la V y habla.
 ## Lo que falta
 
 Escrito y probado: la V animada, el cerebro con imagenes, la voz, las cuentas,
-la memoria, la burbuja, los ajustes y los permisos.
+la memoria, el historial de conversaciones, la burbuja, los ajustes, los
+permisos, y los dos flujos que compilan el APK y publican la web.
 
 Queda por hacer:
 

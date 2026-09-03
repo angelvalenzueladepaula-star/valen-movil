@@ -68,7 +68,21 @@ class _PantallaAjustesState extends State<PantallaAjustes> {
           ),
 
           const _Titulo('La V flotante'),
-          SwitchListTile(
+          if (!BurbujaServicio.posible)
+            const Card(
+              color: Color(0xFF13232B),
+              child: Padding(
+                padding: EdgeInsets.all(14),
+                child: Text(
+                  'La V flotante solo existe en la aplicacion de Android. Una '
+                  'pagina web no puede dibujarse encima de lo que estes '
+                  'haciendo, y eso no depende de VALEN.',
+                  style: TextStyle(fontSize: 12, height: 1.4),
+                ),
+              ),
+            )
+          else
+            SwitchListTile(
             title: const Text('Mostrar la V encima de todo'),
             subtitle: const Text('Un toque para hablarle, dos para abrir esto'),
             value: Ajustes.burbujaEncendida,

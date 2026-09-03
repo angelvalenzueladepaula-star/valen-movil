@@ -27,8 +27,11 @@ dependencies:
   # Cuestionarios: fotos de los apuntes
   image_picker:
 
-  # El historial de conversaciones, guardado en el propio telefono
+  # El historial de conversaciones, guardado en el propio aparato.
+  # La version _web hace que tambien funcione en el navegador, guardando en
+  # IndexedDB en vez de en un archivo.
   sqflite:
+  sqflite_common_ffi_web:
   path_provider:
 
   # Guardar la clave del cerebro donde no la vea nadie
