@@ -1,0 +1,48 @@
+name: valen_movil
+description: VALEN para Android. Un asistente que vive en una V flotante.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # La burbuja flotante encima de todo y el servicio que la mantiene viva
+  flutter_overlay_window:
+  flutter_foreground_task:
+
+  # Oir y hablar
+  speech_to_text:
+  flutter_tts:
+
+  # El cerebro: Gemini, que ademas lee imagenes
+  google_generative_ai:
+
+  # Cuenta de usuario y su base de datos
+  supabase_flutter:
+
+  # Cuestionarios: fotos de los apuntes
+  image_picker:
+
+  # Guardar la clave del cerebro donde no la vea nadie
+  flutter_secure_storage:
+  shared_preferences:
+
+  # Permisos, estado del telefono y sensores para el modo seguridad
+  permission_handler:
+  battery_plus:
+  sensors_plus:
+
+  http:
+  intl:
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints:
+
+flutter:
+  uses-material-design: true

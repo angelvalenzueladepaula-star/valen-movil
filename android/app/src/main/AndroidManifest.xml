@@ -1,0 +1,108 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      PERMISOS DE VALEN
+
+      Cada uno esta aqui por una razon concreta. Android pregunta al usuario
+      por casi todos, asi que cuantos menos, mejor recibida esta la aplicacion.
+    -->
+
+    <!-- El cerebro vive en la nube -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Oir lo que se le dice -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Fotos de ejercicios y apuntes -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!--
+      La V flotante. Es un permiso especial: no se concede con el dialogo
+      normal, hay que ir a los ajustes de Android. Sin el, VALEN sigue
+      funcionando pero solo dentro de su propia pantalla.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!--
+      Sin servicio en primer plano, Android mata la burbuja a los pocos
+      minutos. El tipo "specialUse" es el que corresponde a un asistente que
+      espera ordenes; desde Android 14 hay que declararlo y justificarlo.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Para volver a aparecer despues de reiniciar el telefono -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- El modo seguridad avisa con vibracion ademas de con sonido -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application
+        android:label="VALEN"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!--
+          LOS DOS SERVICIOS QUE SOSTIENEN LA BURBUJA
+
+          Ninguno de los dos plugins declara su servicio en su propio manifest:
+          hay que declararlos aqui o la aplicacion revienta al sacar la V. Los
+          nombres de clase son literales, tal como los pide cada plugin, y no
+          se pueden cambiar.
+
+          El tipo "specialUse" es el que corresponde a un asistente que espera
+          ordenes. Desde Android 14 hay que declararlo y justificarlo por
+          escrito, y ese texto es el que Google lee si algun dia se publica.
+        -->
+        <service
+            android:name="flutter.overlay.window.flutter_overlay_window.OverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Asistente personal en una burbuja flotante, a la espera de que el usuario la toque para hablarle" />
+        </service>
+
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Mantiene viva la burbuja del asistente entre usos" />
+        </service>
+
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>
